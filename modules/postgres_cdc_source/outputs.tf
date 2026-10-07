@@ -1,14 +1,14 @@
 output "parameter_group_name" {
-  description = "Name of the managed parameter group. Attach it to the instance/cluster, then reboot (scripts/reboot.sh). Null when manage_parameter_group = false."
+  description = "Name of the managed parameter group. Attach it to the instance, then reboot (scripts/reboot.sh). Null when manage_parameter_group = false."
   value = try(
     aws_db_parameter_group.this[0].name,
-    aws_rds_cluster_parameter_group.this[0].name,
+    # aws_rds_cluster_parameter_group.this[0].name, # Aurora (disabled)
     null
   )
 }
 
 output "max_slot_wal_keep_size_mb" {
-  description = "WAL retention cap applied (MB), or null if none was set (Aurora without an explicit value)."
+  description = "WAL retention cap applied (MB)."
   value       = local.wal_cap_mb
 }
 
@@ -55,6 +55,6 @@ output "next_step" {
   value = var.enable_postgres_objects ? (
     "Phase 2 applied. Run scripts/verify.sh to confirm the database state."
     ) : (
-    "Phase 1 applied. Attach parameter_group_name to the instance/cluster, run scripts/reboot.sh, confirm wal_level=logical, then re-apply with enable_postgres_objects = true."
+    "Phase 1 applied. Attach parameter_group_name to the instance, run scripts/reboot.sh, confirm wal_level=logical, then re-apply with enable_postgres_objects = true."
   )
 }

@@ -99,34 +99,36 @@ run "non_rds_uses_replication_attribute" {
   }
 }
 
-run "aurora_uses_cluster_parameter_group" {
-  command = plan
-
-  variables {
-    is_aurora                 = true
-    parameter_group_family    = "aurora-postgresql16"
-    max_slot_wal_keep_size_mb = 10240
-  }
-
-  assert {
-    condition     = length(aws_rds_cluster_parameter_group.this) == 1 && length(aws_db_parameter_group.this) == 0
-    error_message = "Aurora should get a cluster parameter group only."
-  }
-}
-
-run "aurora_without_cap_skips_the_parameter" {
-  command = plan
-
-  variables {
-    is_aurora              = true
-    parameter_group_family = "aurora-postgresql16"
-  }
-
-  assert {
-    condition     = output.max_slot_wal_keep_size_mb == null
-    error_message = "Without storage or an explicit cap, Aurora should apply no cap parameter."
-  }
-}
+# Aurora support is disabled (see main.tf). Re-enable these with it.
+#
+# run "aurora_uses_cluster_parameter_group" {
+#   command = plan
+#
+#   variables {
+#     is_aurora                 = true
+#     parameter_group_family    = "aurora-postgresql16"
+#     max_slot_wal_keep_size_mb = 10240
+#   }
+#
+#   assert {
+#     condition     = length(aws_rds_cluster_parameter_group.this) == 1 && length(aws_db_parameter_group.this) == 0
+#     error_message = "Aurora should get a cluster parameter group only."
+#   }
+# }
+#
+# run "aurora_without_cap_skips_the_parameter" {
+#   command = plan
+#
+#   variables {
+#     is_aurora              = true
+#     parameter_group_family = "aurora-postgresql16"
+#   }
+#
+#   assert {
+#     condition     = output.max_slot_wal_keep_size_mb == null
+#     error_message = "Without storage or an explicit cap, Aurora should apply no cap parameter."
+#   }
+# }
 
 run "rds_without_any_wal_cap_is_rejected" {
   command = plan

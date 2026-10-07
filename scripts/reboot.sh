@@ -9,8 +9,7 @@
 #   scripts/reboot.sh --identifier my-db [--identifier my-db-reader] [--region eu-central-1]
 #   scripts/reboot.sh --identifier my-db --confirm [--wait]
 #
-# For Aurora, pass each DB instance identifier (not the cluster identifier).
-# The Aurora path has not been exercised end to end - check the output carefully.
+# RDS for PostgreSQL instances only. Aurora (cluster parameter groups) is not supported.
 
 set -euo pipefail
 

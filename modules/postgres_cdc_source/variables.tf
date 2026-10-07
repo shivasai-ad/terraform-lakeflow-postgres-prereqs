@@ -42,22 +42,25 @@ variable "manage_parameter_group" {
   default     = true
   description = <<-EOT
     Create and manage a parameter group with the CDC parameters. The module only creates the
-    group; the consumer must attach it to the instance/cluster (the instance is usually owned
+    group; the consumer must attach it to the instance (the instance is usually owned
     elsewhere). Set false if the group is owned elsewhere - then you must set the parameters
     yourself and the module will not touch it.
   EOT
 }
 
-variable "is_aurora" {
-  type        = bool
-  default     = false
-  description = "true = Aurora PostgreSQL (cluster parameter group); false = RDS for PostgreSQL (instance parameter group)."
-}
+# Aurora support is disabled: this project targets RDS for PostgreSQL. Uncomment together
+# with aws_rds_cluster_parameter_group in main.tf to restore it.
+#
+# variable "is_aurora" {
+#   type        = bool
+#   default     = false
+#   description = "true = Aurora PostgreSQL (cluster parameter group); false = RDS for PostgreSQL (instance parameter group)."
+# }
 
 variable "parameter_group_family" {
   type        = string
   default     = "postgres17"
-  description = "Parameter group family, e.g. postgres17 (RDS) or aurora-postgresql16 (Aurora)."
+  description = "Parameter group family for RDS for PostgreSQL, e.g. postgres17."
 }
 
 variable "allocated_storage_gb" {
@@ -65,8 +68,7 @@ variable "allocated_storage_gb" {
   default     = null
   description = <<-EOT
     Allocated storage of the instance in GB. Used to derive the WAL retention cap when
-    max_slot_wal_keep_size_mb is not set. Not applicable to Aurora (storage auto-scales) -
-    set max_slot_wal_keep_size_mb explicitly there.
+    max_slot_wal_keep_size_mb is not set.
   EOT
 
   validation {
@@ -103,7 +105,7 @@ variable "max_slot_wal_keep_size_mb" {
 
 variable "host" {
   type        = string
-  description = "Database endpoint hostname (the writer endpoint for Aurora)."
+  description = "Database endpoint hostname."
 }
 
 variable "port" {
@@ -154,7 +156,7 @@ variable "use_rds_replication_role" {
   type        = bool
   default     = true
   description = <<-EOT
-    true (RDS/Aurora) = grant the rds_replication role instead of setting the REPLICATION
+    true (RDS) = grant the rds_replication role instead of setting the REPLICATION
     attribute, because the master user is not a true superuser on RDS. false = set REPLICATION
     on the role (self-managed Postgres).
   EOT

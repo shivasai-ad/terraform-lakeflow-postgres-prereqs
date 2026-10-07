@@ -17,10 +17,11 @@ variable "enable_postgres_objects" {
   description = "false = Phase 1 (AWS layer). true = Phase 2 (Postgres objects), only after the reboot."
 }
 
-variable "is_aurora" {
-  type    = bool
-  default = false
-}
+# Aurora support is disabled (RDS for PostgreSQL only).
+# variable "is_aurora" {
+#   type    = bool
+#   default = false
+# }
 
 variable "parameter_group_family" {
   type    = string

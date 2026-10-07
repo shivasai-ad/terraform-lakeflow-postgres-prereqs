@@ -1,6 +1,6 @@
 # terraform-lakeflow-postgres-prereqs
 
-A Terraform module that prepares an AWS RDS / Aurora **PostgreSQL** database as a
+A Terraform module that prepares an AWS **RDS for PostgreSQL** database as a
 change-data-capture (CDC) source for **Databricks Lakeflow Connect**.
 
 It turns the manual source-side runbook into reviewable code: logical replication,
@@ -9,14 +9,14 @@ retention cap, `REPLICA IDENTITY FULL` for tables without a primary key, and a
 post-apply verification script.
 
 > **Status: untested against a live database.** The module passes `terraform validate`
-> and an 11-case `terraform test` suite that runs against mocked providers. It has not
-> yet been applied to a real RDS/Aurora instance. See [Known gaps](#known-gaps).
+> and a 9-case `terraform test` suite that runs against mocked providers. It has not
+> yet been applied to a real RDS instance. See [Known gaps](#known-gaps).
 
 ## What it does
 
 | Runbook step | Handled by |
 |---|---|
-| Enable logical replication (`rds.logical_replication = 1`) | Parameter group (cluster-level for Aurora) |
+| Enable logical replication (`rds.logical_replication = 1`) | RDS parameter group |
 | Dedicated replication user, least privilege | `postgresql_role`, `postgresql_grant_role` (`rds_replication`), `postgresql_grant`, `postgresql_default_privileges` |
 | Publication with an explicit table list | `postgresql_publication` |
 | Replication slot (`pgoutput`) | `postgresql_replication_slot` (`prevent_destroy`) |
@@ -42,7 +42,7 @@ is applied in two phases, and **Terraform never reboots anything**.
 
 1. **Phase 1** - `enable_postgres_objects = false` (default). Creates the parameter
    group and the secret container.
-2. **Attach and reboot.** Attach `parameter_group_name` to the instance/cluster (in the
+2. **Attach and reboot.** Attach `parameter_group_name` to the instance (in the
    stack that owns it), then run `scripts/reboot.sh --identifier <db>` (dry run) and
    `--confirm` when ready. This causes a brief outage - schedule it.
 3. **Phase 2** - `enable_postgres_objects = true`. Creates the role, grants, publication,
@@ -83,11 +83,11 @@ blocks cannot be driven by `for_each`, so run one root (and one state) per sourc
 | `publication_tables` | Explicit schema-qualified table list (validated as plain identifiers) |
 | `replica_identity_full_tables` | PK-less tables; must be a subset of `publication_tables` |
 | `allocated_storage_gb` / `wal_retention_percent` | Derives the WAL cap (default 15% of storage) |
-| `max_slot_wal_keep_size_mb` | Explicit cap in MB; overrides the derived one. Required for Aurora |
-| `is_aurora` / `parameter_group_family` | Cluster vs instance parameter group |
+| `max_slot_wal_keep_size_mb` | Explicit cap in MB; overrides the derived one |
+| `parameter_group_family` | RDS parameter group family, e.g. `postgres17` |
 | `manage_parameter_group` | Set `false` if another stack owns the group |
 | `manage_secret` / `secret_name` | Set `manage_secret = false` if another stack owns the secret |
-| `use_rds_replication_role` | `true` for RDS/Aurora (`rds_replication`), `false` for self-managed |
+| `use_rds_replication_role` | `true` for RDS (`rds_replication`), `false` for self-managed |
 
 ## WAL cap: the tradeoff
 
@@ -135,10 +135,11 @@ scripts/verify.sh
 
 - **Not applied to a live database yet.** Provider behaviour (publication/slot on RDS,
   `rds_replication` grants, default privileges) is unconfirmed until a real dev apply.
-- **`max_slot_wal_keep_size` on Aurora** may not behave as on RDS PostgreSQL, and the
-  parameter unit (MB) should be confirmed for your engine version.
-- **`scripts/reboot.sh` Aurora path** (per-instance reboot with a cluster parameter group)
-  has not been exercised.
+- **`max_slot_wal_keep_size`**: the parameter unit (MB) and that it is set through the
+  parameter group (not `ALTER SYSTEM`, which RDS does not allow) should be confirmed for
+  your engine version.
+- **Aurora is not supported.** The Aurora code paths (cluster parameter group, `is_aurora`)
+  are commented out in the module, tests and example so they can be restored later.
 - **`REPLICA IDENTITY` drift** (changed out-of-band) is not detected by `terraform plan`;
   `verify.sh` detects it.
 - No license file is included yet; add one before others reuse this.

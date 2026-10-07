@@ -21,7 +21,7 @@ locals {
 }
 
 resource "aws_db_parameter_group" "this" {
-  count       = var.manage_parameter_group && !var.is_aurora ? 1 : 0
+  count       = var.manage_parameter_group ? 1 : 0 # Aurora disabled; was: && !var.is_aurora
   name_prefix = "${local.base_name}-"
   family      = var.parameter_group_family
   description = "Logical replication prerequisites for Lakeflow Connect CDC (${var.name}/${var.environment})"
@@ -46,26 +46,30 @@ resource "aws_db_parameter_group" "this" {
   }
 }
 
-resource "aws_rds_cluster_parameter_group" "this" {
-  count       = var.manage_parameter_group && var.is_aurora ? 1 : 0
-  name_prefix = "${local.base_name}-"
-  family      = var.parameter_group_family
-  description = "Logical replication prerequisites for Lakeflow Connect CDC (${var.name}/${var.environment})"
-  tags        = var.tags
-
-  dynamic "parameter" {
-    for_each = local.parameters
-    content {
-      name         = parameter.value.name
-      value        = parameter.value.value
-      apply_method = "pending-reboot"
-    }
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
+# Aurora support is disabled: this project targets RDS for PostgreSQL. To restore it,
+# uncomment this resource and the is_aurora variable, and add "&& !var.is_aurora" back to
+# the count of aws_db_parameter_group.this above.
+#
+# resource "aws_rds_cluster_parameter_group" "this" {
+#   count       = var.manage_parameter_group && var.is_aurora ? 1 : 0
+#   name_prefix = "${local.base_name}-"
+#   family      = var.parameter_group_family
+#   description = "Logical replication prerequisites for Lakeflow Connect CDC (${var.name}/${var.environment})"
+#   tags        = var.tags
+#
+#   dynamic "parameter" {
+#     for_each = local.parameters
+#     content {
+#       name         = parameter.value.name
+#       value        = parameter.value.value
+#       apply_method = "pending-reboot"
+#     }
+#   }
+#
+#   lifecycle {
+#     create_before_destroy = true
+#   }
+# }
 
 resource "random_password" "replication" {
   length  = 32

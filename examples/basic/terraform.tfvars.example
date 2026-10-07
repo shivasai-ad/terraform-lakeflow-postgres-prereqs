@@ -7,9 +7,9 @@ environment = "dev"
 # Phase 1: leave false. Flip to true only after the reboot (see README).
 enable_postgres_objects = false
 
-is_aurora              = false
+# is_aurora            = false # Aurora support disabled
 parameter_group_family = "postgres17"
-allocated_storage_gb   = 110 # RDS only; set max_slot_wal_keep_size_mb in the module for Aurora
+allocated_storage_gb   = 110 # drives the WAL retention cap (15% by default)
 
 host           = "orders-db.example.eu-central-1.rds.amazonaws.com"
 database       = "orders"

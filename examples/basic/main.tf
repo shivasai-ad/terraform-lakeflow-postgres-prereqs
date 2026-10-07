@@ -36,7 +36,7 @@ provider "postgresql" {
   username  = var.admin_username
   password  = var.admin_password
   sslmode   = "require"
-  superuser = false # RDS/Aurora master users are not true superusers
+  superuser = false # RDS master users are not true superusers
 }
 
 module "cdc_source" {
@@ -47,7 +47,7 @@ module "cdc_source" {
 
   enable_postgres_objects = var.enable_postgres_objects
 
-  is_aurora              = var.is_aurora
+  # is_aurora            = var.is_aurora # Aurora support disabled
   parameter_group_family = var.parameter_group_family
   allocated_storage_gb   = var.allocated_storage_gb
 

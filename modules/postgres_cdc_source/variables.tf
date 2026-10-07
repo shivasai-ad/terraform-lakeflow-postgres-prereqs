@@ -70,7 +70,7 @@ variable "allocated_storage_gb" {
   EOT
 
   validation {
-    condition     = var.allocated_storage_gb == null || var.allocated_storage_gb > 0
+    condition     = var.allocated_storage_gb == null ? true : var.allocated_storage_gb > 0
     error_message = "allocated_storage_gb must be > 0."
   }
 }
@@ -92,7 +92,7 @@ variable "max_slot_wal_keep_size_mb" {
   description = "Explicit WAL retention cap in MB (RDS parameter unit). Overrides the storage-derived value."
 
   validation {
-    condition     = var.max_slot_wal_keep_size_mb == null || var.max_slot_wal_keep_size_mb > 0
+    condition     = var.max_slot_wal_keep_size_mb == null ? true : var.max_slot_wal_keep_size_mb > 0
     error_message = "max_slot_wal_keep_size_mb must be > 0 (-1, unlimited, is deliberately not allowed)."
   }
 }

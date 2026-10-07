@@ -58,7 +58,11 @@ q() {
 
 # 1. WAL level
 wal_level="$(q 'SHOW wal_level;')"
-[[ $wal_level == "logical" ]] && pass "wal_level = logical" || bad "wal_level is '$wal_level', expected 'logical' (parameter group attached and instance rebooted?)"
+if [[ $wal_level == "logical" ]]; then
+  pass "wal_level = logical"
+else
+  bad "wal_level is '$wal_level', expected 'logical' (parameter group attached and instance rebooted?)"
+fi
 
 # 2. Replication user and privilege
 exists="$(q "SELECT count(*) FROM pg_roles WHERE rolname = :'u' AND rolcanlogin;" "u=$REPL_USER")"
@@ -66,10 +70,18 @@ if [[ $exists == "1" ]]; then
   pass "user $REPL_USER exists and can log in"
   if [[ $USE_RDS_REPLICATION_ROLE == "true" ]]; then
     ok="$(q "SELECT pg_has_role(:'u', 'rds_replication', 'member');" "u=$REPL_USER")"
-    [[ $ok == "t" ]] && pass "$REPL_USER is a member of rds_replication" || bad "$REPL_USER is not a member of rds_replication"
+    if [[ $ok == "t" ]]; then
+      pass "$REPL_USER is a member of rds_replication"
+    else
+      bad "$REPL_USER is not a member of rds_replication"
+    fi
   else
     ok="$(q "SELECT rolreplication FROM pg_roles WHERE rolname = :'u';" "u=$REPL_USER")"
-    [[ $ok == "t" ]] && pass "$REPL_USER has the REPLICATION attribute" || bad "$REPL_USER lacks the REPLICATION attribute"
+    if [[ $ok == "t" ]]; then
+      pass "$REPL_USER has the REPLICATION attribute"
+    else
+      bad "$REPL_USER lacks the REPLICATION attribute"
+    fi
   fi
 else
   bad "user $REPL_USER does not exist or cannot log in"
@@ -78,7 +90,11 @@ fi
 # 3. SELECT grant on every published table
 for t in "${tables[@]}"; do
   ok="$(q "SELECT has_table_privilege(:'u', :'t'::regclass, 'SELECT');" "u=$REPL_USER" "t=$t" 2>/dev/null)"
-  [[ $ok == "t" ]] && pass "$REPL_USER can SELECT $t" || bad "$REPL_USER cannot SELECT $t (or the table does not exist)"
+  if [[ $ok == "t" ]]; then
+    pass "$REPL_USER can SELECT $t"
+  else
+    bad "$REPL_USER cannot SELECT $t (or the table does not exist)"
+  fi
 done
 
 # 4. Publication exists and contains every expected table
@@ -89,7 +105,11 @@ if [[ $pub == "1" ]]; then
     schema="${t%%.*}"
     table="${t##*.}"
     n="$(q "SELECT count(*) FROM pg_publication_tables WHERE pubname = :'p' AND schemaname = :'s' AND tablename = :'n';" "p=$PUBLICATION" "s=$schema" "n=$table")"
-    [[ $n == "1" ]] && pass "publication contains $t" || bad "publication $PUBLICATION is missing $t"
+    if [[ $n == "1" ]]; then
+      pass "publication contains $t"
+    else
+      bad "publication $PUBLICATION is missing $t"
+    fi
   done
 else
   bad "publication $PUBLICATION does not exist"
@@ -109,7 +129,11 @@ fi
 for t in ${pkless[@]+"${pkless[@]}"}; do
   [[ -z $t ]] && continue
   ri="$(q "SELECT relreplident FROM pg_class WHERE oid = :'t'::regclass;" "t=$t" 2>/dev/null)"
-  [[ $ri == "f" ]] && pass "$t has REPLICA IDENTITY FULL" || bad "$t does not have REPLICA IDENTITY FULL (relreplident='$ri')"
+  if [[ $ri == "f" ]]; then
+    pass "$t has REPLICA IDENTITY FULL"
+  else
+    bad "$t does not have REPLICA IDENTITY FULL (relreplident='$ri')"
+  fi
 done
 
 # 7. Catch published tables with no primary key and no REPLICA IDENTITY FULL.
@@ -134,7 +158,11 @@ fi
 # 8. WAL retention cap
 cap="$(q "SELECT setting FROM pg_settings WHERE name = 'max_slot_wal_keep_size';")"
 if [[ -n $EXPECT_WAL_CAP_MB ]]; then
-  [[ $cap == "$EXPECT_WAL_CAP_MB" ]] && pass "max_slot_wal_keep_size = ${cap}MB" || bad "max_slot_wal_keep_size is '${cap}', expected ${EXPECT_WAL_CAP_MB}MB"
+  if [[ $cap == "$EXPECT_WAL_CAP_MB" ]]; then
+    pass "max_slot_wal_keep_size = ${cap}MB"
+  else
+    bad "max_slot_wal_keep_size is '${cap}', expected ${EXPECT_WAL_CAP_MB}MB"
+  fi
 else
   echo "INFO  max_slot_wal_keep_size = ${cap} (-1 means unlimited)"
 fi

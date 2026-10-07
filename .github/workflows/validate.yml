@@ -1,0 +1,42 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.9"
+
+      - name: Format
+        run: terraform fmt -check -recursive
+
+      - name: Module - init, validate, test
+        working-directory: modules/postgres_cdc_source
+        run: |
+          terraform init -backend=false
+          terraform validate
+          terraform test
+
+      - name: Example - init, validate
+        working-directory: examples/basic
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shellcheck
+        run: shellcheck scripts/*.sh

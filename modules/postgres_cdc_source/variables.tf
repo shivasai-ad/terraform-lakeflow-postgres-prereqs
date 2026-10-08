@@ -225,7 +225,7 @@ variable "manage_secret" {
   type        = bool
   default     = true
   description = <<-EOT
-    Create an AWS Secrets Manager secret holding the replication credentials as JSON
+    Create (in Phase 2) an AWS Secrets Manager secret holding the replication credentials as JSON
     {host, port, username, password, database}. Set false if the secret is owned by another
     stack - then read the sensitive replication_password output and write it there yourself.
   EOT

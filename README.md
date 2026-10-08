@@ -40,13 +40,14 @@ A logical replication slot cannot be created until logical replication is active
 `rds.logical_replication` is a **static** parameter that needs a reboot. So the module
 is applied in two phases, and **Terraform never reboots anything**.
 
-1. **Phase 1** - `enable_postgres_objects = false` (default). Creates the parameter
-   group and the secret container.
+1. **Phase 1** - `enable_postgres_objects = false` (default). Creates only the parameter
+   group.
 2. **Attach and reboot.** Attach `parameter_group_name` to the instance (in the
    stack that owns it), then run `scripts/reboot.sh --identifier <db>` (dry run) and
    `--confirm` when ready. This causes a brief outage - schedule it.
 3. **Phase 2** - `enable_postgres_objects = true`. Creates the role, grants, publication,
-   slot and REPLICA IDENTITY settings, then writes the credentials to the secret.
+   slot and REPLICA IDENTITY settings, then creates the secret and writes the
+   credentials into it.
 4. **Verify** - run `scripts/verify.sh`.
 
 ```hcl

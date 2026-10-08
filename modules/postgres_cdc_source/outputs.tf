@@ -25,7 +25,7 @@ output "slot_name" {
 }
 
 output "secret_arn" {
-  description = "ARN of the credentials secret. Null when manage_secret = false."
+  description = "ARN of the credentials secret. Null in Phase 1 (the secret is created in Phase 2) or when manage_secret = false."
   value       = try(aws_secretsmanager_secret.replication[0].arn, null)
 }
 

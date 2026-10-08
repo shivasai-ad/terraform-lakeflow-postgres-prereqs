@@ -30,8 +30,8 @@ run "phase1_creates_only_aws_layer" {
   }
 
   assert {
-    condition     = length(aws_secretsmanager_secret_version.replication) == 0
-    error_message = "Credentials must not be written to the secret before the role exists."
+    condition     = length(aws_secretsmanager_secret.replication) == 0 && length(aws_secretsmanager_secret_version.replication) == 0
+    error_message = "No secret should exist in Phase 1, so a consumer never reads an empty or non-working secret."
   }
 
   assert {
@@ -79,8 +79,8 @@ run "phase2_creates_postgres_objects" {
   }
 
   assert {
-    condition     = length(aws_secretsmanager_secret_version.replication) == 1
-    error_message = "Phase 2 should write the credentials secret."
+    condition     = length(aws_secretsmanager_secret.replication) == 1 && length(aws_secretsmanager_secret_version.replication) == 1
+    error_message = "Phase 2 should create the secret and write the credentials."
   }
 }
 

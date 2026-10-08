@@ -77,7 +77,7 @@ resource "random_password" "replication" {
 }
 
 resource "aws_secretsmanager_secret" "replication" {
-  count = var.manage_secret ? 1 : 0
+  count = var.manage_secret && var.enable_postgres_objects ? 1 : 0
   name  = local.secret_name
   tags  = var.tags
 }

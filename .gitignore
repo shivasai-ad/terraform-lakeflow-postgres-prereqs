@@ -4,6 +4,7 @@
 crash.log
 *.tfvars
 !*.tfvars.example
+!envs/*.tfvars
 .terraform.tfstate.lock.info
 modules/**/.terraform.lock.hcl
 .DS_Store

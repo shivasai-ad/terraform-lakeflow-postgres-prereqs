@@ -28,8 +28,7 @@ jobs:
           terraform validate
           terraform test
 
-      - name: Example - init, validate
-        working-directory: examples/basic
+      - name: Root - init, validate
         run: |
           terraform init -backend=false
           terraform validate

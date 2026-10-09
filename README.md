@@ -30,17 +30,23 @@ post-apply verification script, and a preflight check.
 ## Layout
 
 ```
+main.tf  variables.tf  outputs.tf  versions.tf   the root configuration (providers + the module call)
+envs/dev.tfvars                                  non-secret settings for one environment / source
 modules/postgres_cdc_source/
   main.tf          Phase 1: the parameter group
   postgres.tf      Phase 2: role, grants, publication, slot, REPLICA IDENTITY
   credentials.tf   Phase 2: password and secret (new, or merged into an existing one)
   tests/           mocked-provider tests
-examples/basic/    a thin root: one run = one source = one state file
 scripts/preflight.sh   run BEFORE apply: connectivity, login, ownership, slots
 scripts/reboot.sh      the approved reboot step (report-only by default)
 scripts/verify.sh      read-only post-apply verification
 docs/decisions.md      the design decisions and what is still open
+.github/workflows/     CI: fmt, validate, tests, shellcheck (no apply - see Connectivity)
 ```
+
+One run of the root = one source database = one state file. The `postgresql` provider is configured once
+in `main.tf` (provider blocks cannot be driven by `for_each`), so another source or environment is another
+`envs/*.tfvars` file and another state key - not another provider alias.
 
 ## Two-phase apply
 
@@ -57,31 +63,33 @@ phases, and **Terraform never reboots anything**.
    REPLICA IDENTITY settings, then the password and secret.
 5. **Verify** - `scripts/verify.sh`, after every apply.
 
-```hcl
-module "cdc_source" {
-  source = "github.com/shivasai-ad/terraform-lakeflow-postgres-prereqs//modules/postgres_cdc_source?ref=<tag-or-commit>"
+## Running it
 
-  name        = "orders"
-  environment = "dev"
+```bash
+# 1. Initialise with this environment's own state (one state per environment / source)
+terraform init \
+  -backend-config="bucket=<state-bucket>" \
+  -backend-config="key=dev/orders/cdc-prereqs.tfstate" \
+  -backend-config="region=<region>"
 
-  enable_postgres_objects = false # flip to true after the reboot
+# 2. The admin password comes from the environment, never from a file
+export TF_VAR_admin_password='...'
 
-  allocated_storage_gb   = 110
-  parameter_group_family = "postgres17"
+# 3. Phase 1 (enable_postgres_objects = false in envs/dev.tfvars)
+terraform plan  -var-file=envs/dev.tfvars
+terraform apply -var-file=envs/dev.tfvars
 
-  host           = "orders-db.example.eu-central-1.rds.amazonaws.com"
-  database       = "orders"
-  admin_username = "postgres"
-  admin_password = var.admin_password
+# ... attach the parameter group, reboot, confirm wal_level = logical ...
 
-  table_owner                  = "app_owner" # the role that creates your tables
-  publication_tables           = ["public.customer", "public.order", "public.order_line"]
-  replica_identity_full_tables = ["public.order_line"] # no primary key
-}
+# 4. Phase 2: set enable_postgres_objects = true in envs/dev.tfvars, then plan and apply again
 ```
 
-The `postgresql` provider is configured in the **calling root**, not the module. Provider blocks
-cannot be driven by `for_each`, so run one root (and one state) per source - see `examples/basic`.
+**Adding an environment or source:** copy `envs/dev.tfvars` to `envs/<name>.tfvars`, edit it, and
+`init` with a different state key. Run `terraform plan` and `apply` from a self-hosted runner that can
+reach the database (see Connectivity).
+
+The module is self-contained under `modules/postgres_cdc_source`, so another repository can also call it
+by git source instead of using this root.
 
 ## Key inputs
 

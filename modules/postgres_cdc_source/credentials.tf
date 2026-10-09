@@ -13,7 +13,7 @@
 #      secret itself. It looks the secret up and writes ONE new version whose
 #      JSON is the existing content with username/password replaced by the
 #      replication user's. Other keys are preserved. This changes what every
-#      reader of that secret sees - see README "Decision 2".
+#      reader of that secret sees - see docs/decisions.md, section 2.
 
 locals {
   creds_enabled       = var.enable_postgres_objects

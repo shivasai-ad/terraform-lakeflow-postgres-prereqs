@@ -25,9 +25,10 @@ variable "enable_postgres_objects" {
   type        = bool
   default     = false
   description = <<-EOT
-    Phase gate. false (default) = Phase 1: only the AWS layer (parameter group, secret).
+    Phase gate. false (default) = Phase 1: only the parameter group.
     true = Phase 2: also create the Postgres objects (role, grants, publication, slot,
-    REPLICA IDENTITY). Only set true AFTER logical replication is active, i.e. after the
+    REPLICA IDENTITY) plus the password and the secret.
+    Only set true AFTER logical replication is active, i.e. after the
     parameter group is attached and the instance has been rebooted - creating a logical
     replication slot fails otherwise.
   EOT

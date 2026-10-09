@@ -1,8 +1,12 @@
-# Layer 1 - AWS: parameter group (logical replication + WAL cap), generated
-# password, and the credentials secret.
+# Phase 1 - AWS: the parameter group (logical replication + WAL cap).
 #
-# The module never reboots anything. Static parameters only take effect after a
-# reboot, which is a deliberate, separate step (scripts/reboot.sh).
+# This is the only thing created before the reboot. Everything that needs a
+# working replication setup (Postgres objects, password, secret) is Phase 2 -
+# see postgres.tf and credentials.tf.
+#
+# The module never reboots anything. Static parameters only take effect after
+# the group is attached to the instance AND the instance is rebooted, which is a
+# deliberate, separate, approved step (scripts/reboot.sh).
 
 locals {
   wal_cap_mb = (
@@ -16,8 +20,7 @@ locals {
     local.wal_cap_mb != null ? [{ name = "max_slot_wal_keep_size", value = tostring(local.wal_cap_mb) }] : []
   )
 
-  base_name   = "${var.name}-${var.environment}-cdc"
-  secret_name = coalesce(var.secret_name, "cdc/${var.name}-replication-${var.environment}")
+  base_name = "${var.name}-${var.environment}-cdc"
 }
 
 resource "aws_db_parameter_group" "this" {
@@ -70,31 +73,3 @@ resource "aws_db_parameter_group" "this" {
 #     create_before_destroy = true
 #   }
 # }
-
-resource "random_password" "replication" {
-  length  = 32
-  special = false
-}
-
-resource "aws_secretsmanager_secret" "replication" {
-  count = var.manage_secret && var.enable_postgres_objects ? 1 : 0
-  name  = local.secret_name
-  tags  = var.tags
-}
-
-# Written only in Phase 2, once the role actually exists, so consumers never see
-# credentials that do not work yet.
-resource "aws_secretsmanager_secret_version" "replication" {
-  count     = var.manage_secret && var.enable_postgres_objects ? 1 : 0
-  secret_id = aws_secretsmanager_secret.replication[0].id
-
-  secret_string = jsonencode({
-    host     = var.host
-    port     = var.port
-    username = var.replication_username
-    password = random_password.replication.result
-    database = var.database
-  })
-
-  depends_on = [postgresql_role.replication]
-}

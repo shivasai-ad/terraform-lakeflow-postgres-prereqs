@@ -121,7 +121,13 @@ variable "database" {
 
 variable "admin_username" {
   type        = string
-  description = "Admin (master) username. Used for the REPLICA IDENTITY step and as the default owner for default privileges."
+  description = <<-EOT
+    Admin (master) username Terraform connects as. It must OWN, or be a member of the role that
+    owns, every table in publication_tables - Postgres requires table ownership for both
+    ALTER TABLE ... REPLICA IDENTITY and adding a table to a publication. RDS's master user is
+    not a true superuser, so if an application role owns the tables run once:
+    GRANT <owner_role> TO <admin_username>;   (scripts/preflight.sh checks this)
+  EOT
 }
 
 variable "admin_password" {
@@ -135,6 +141,17 @@ variable "sslmode" {
   type        = string
   default     = "require"
   description = "psql sslmode for the REPLICA IDENTITY step."
+}
+
+variable "replica_identity_lock_timeout_ms" {
+  type        = number
+  default     = 10000
+  description = "lock_timeout (ms) for the REPLICA IDENTITY ALTER TABLE. If a busy table holds a conflicting lock longer than this, the step fails instead of hanging the pipeline; re-run at a quieter time."
+
+  validation {
+    condition     = floor(var.replica_identity_lock_timeout_ms) == var.replica_identity_lock_timeout_ms && var.replica_identity_lock_timeout_ms >= 100 && var.replica_identity_lock_timeout_ms <= 600000
+    error_message = "replica_identity_lock_timeout_ms must be a whole number between 100 and 600000."
+  }
 }
 
 ########################################
@@ -176,7 +193,7 @@ variable "schemas" {
 variable "table_owner" {
   type        = string
   default     = null
-  description = "Role that owns/creates the tables, for ALTER DEFAULT PRIVILEGES. Defaults to admin_username."
+  description = "Role that CREATES the tables; the replication user gets default SELECT on tables this role creates later. Set it to your application's table-owner role - the default (admin_username) only covers tables the admin itself creates."
 }
 
 variable "publication_name" {
@@ -234,7 +251,26 @@ variable "manage_secret" {
 variable "secret_name" {
   type        = string
   default     = null
-  description = "Secrets Manager secret name. Defaults to cdc/<name>-replication-<environment>."
+  description = "Name for the NEW secret the module creates. Defaults to cdc/<name>-replication-<environment>. Do not combine with existing_secret_name."
+}
+
+variable "existing_secret_name" {
+  type        = string
+  default     = null
+  description = <<-EOT
+    Name or ARN of an EXISTING secret (owned by another stack) to write the replication
+    credentials into, instead of creating a new one. The module only looks it up and writes
+    one new version: the existing JSON with username/password replaced and other keys kept.
+    The secret must already hold a JSON value. The Terraform role needs
+    secretsmanager:DescribeSecret/GetSecretValue/PutSecretValue on it (plus KMS access if it
+    uses a customer-managed key). WARNING: every reader of that secret will then see the
+    replication user instead of whatever user it held before.
+  EOT
+
+  validation {
+    condition     = var.existing_secret_name == null ? true : var.secret_name == null
+    error_message = "Set either secret_name (create a new secret) or existing_secret_name (write into an existing one), not both."
+  }
 }
 
 variable "tags" {

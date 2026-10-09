@@ -138,21 +138,27 @@ done
 
 # 7. Catch published tables with no primary key and no REPLICA IDENTITY FULL.
 #    This is the failure mode behind "CDC not enabled" errors for newly added tables.
-unprotected="$(q "
-SELECT format('%I.%I', pt.schemaname, pt.tablename)
+#    Joins on names/OIDs instead of casting text to regclass: the planner may evaluate such a
+#    cast on rows the WHERE clause would have excluded (e.g. pg_toast), which errors out.
+#    'i' (REPLICA IDENTITY USING INDEX) also counts as protected.
+#    An empty result means "all good", so a failing query must NOT be read as success.
+if unprotected="$(q "
+SELECT format('%I.%I', n.nspname, c.relname)
 FROM pg_publication_tables pt
+JOIN pg_namespace n ON n.nspname = pt.schemaname
+JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = pt.tablename AND c.relkind IN ('r', 'p')
 WHERE pt.pubname = :'p'
-  AND NOT EXISTS (
-    SELECT 1 FROM pg_index i
-    WHERE i.indrelid = format('%I.%I', pt.schemaname, pt.tablename)::regclass AND i.indisprimary)
-  AND (SELECT relreplident FROM pg_class
-       WHERE oid = format('%I.%I', pt.schemaname, pt.tablename)::regclass) <> 'f';" "p=$PUBLICATION")"
-if [[ -z $unprotected ]]; then
-  pass "no published table lacks both a primary key and REPLICA IDENTITY FULL"
+  AND c.relreplident NOT IN ('f', 'i')
+  AND NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = c.oid AND i.indisprimary);" "p=$PUBLICATION" 2>&1)"; then
+  if [[ -z $unprotected ]]; then
+    pass "no published table lacks both a primary key and REPLICA IDENTITY FULL"
+  else
+    while IFS= read -r t; do
+      bad "published table $t has no primary key and no REPLICA IDENTITY FULL"
+    done <<<"$unprotected"
+  fi
 else
-  while IFS= read -r t; do
-    bad "published table $t has no primary key and no REPLICA IDENTITY FULL"
-  done <<<"$unprotected"
+  bad "could not run the primary-key / REPLICA IDENTITY check: ${unprotected//$'\n'/ }"
 fi
 
 # 8. WAL retention cap

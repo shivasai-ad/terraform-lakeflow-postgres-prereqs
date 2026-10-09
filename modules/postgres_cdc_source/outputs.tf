@@ -25,13 +25,17 @@ output "slot_name" {
 }
 
 output "secret_arn" {
-  description = "ARN of the credentials secret. Null in Phase 1 (the secret is created in Phase 2) or when manage_secret = false."
-  value       = try(aws_secretsmanager_secret.replication[0].arn, null)
+  description = "ARN of the secret holding the credentials (new or existing). Null in Phase 1 (nothing is written until Phase 2) or when manage_secret = false."
+  value = try(
+    aws_secretsmanager_secret.replication[0].arn,
+    data.aws_secretsmanager_secret.existing[0].arn,
+    null
+  )
 }
 
 output "replication_password" {
   description = "Generated replication password. Use only when manage_secret = false and you write it to your own secret store."
-  value       = random_password.replication.result
+  value       = try(random_password.replication[0].result, null)
   sensitive   = true
 }
 

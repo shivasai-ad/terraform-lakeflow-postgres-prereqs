@@ -19,14 +19,13 @@ resource "postgresql_role" "replication" {
   count       = local.pg_enabled ? 1 : 0
   name        = var.replication_username
   login       = true
-  password    = random_password.replication.result
+  password    = random_password.replication[0].result
   replication = !var.use_rds_replication_role
-}
 
-resource "postgresql_grant_role" "rds_replication" {
-  count      = local.pg_enabled && var.use_rds_replication_role ? 1 : 0
-  role       = postgresql_role.replication[0].name
-  grant_role = "rds_replication"
+  # Membership MUST be declared here, not with a separate postgresql_grant_role:
+  # this resource treats `roles` as the complete set of memberships, so a separate
+  # grant is revoked on every apply and re-added on the next (never idempotent).
+  roles = var.use_rds_replication_role ? ["rds_replication"] : []
 }
 
 resource "postgresql_grant" "schema_usage" {
@@ -89,14 +88,17 @@ resource "terraform_data" "replica_identity" {
   triggers_replace = [each.value, var.database, var.host, var.port]
 
   provisioner "local-exec" {
-    command = "psql -v ON_ERROR_STOP=1 -c '${local.replica_identity_sql[each.value]}'"
+    # -X: ignore any psqlrc. -w: never prompt for a password (fail instead of hanging CI).
+    # lock_timeout: fail fast if a busy table blocks the brief lock this ALTER needs.
+    command = "psql -X -w -v ON_ERROR_STOP=1 -c 'SET lock_timeout = ${var.replica_identity_lock_timeout_ms}; ${local.replica_identity_sql[each.value]}'"
     environment = {
-      PGHOST     = var.host
-      PGPORT     = tostring(var.port)
-      PGDATABASE = var.database
-      PGUSER     = var.admin_username
-      PGPASSWORD = var.admin_password
-      PGSSLMODE  = var.sslmode
+      PGHOST            = var.host
+      PGPORT            = tostring(var.port)
+      PGDATABASE        = var.database
+      PGUSER            = var.admin_username
+      PGPASSWORD        = var.admin_password
+      PGSSLMODE         = var.sslmode
+      PGCONNECT_TIMEOUT = "10"
     }
   }
 

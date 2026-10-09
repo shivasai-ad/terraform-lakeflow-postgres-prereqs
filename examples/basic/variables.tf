@@ -68,3 +68,15 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "table_owner" {
+  type        = string
+  default     = null
+  description = "Role that creates the tables (for default SELECT privileges). Set to your application's table-owner role."
+}
+
+variable "existing_secret_name" {
+  type        = string
+  default     = null
+  description = "Write the credentials into this EXISTING secret instead of creating a new one. See docs/decisions.md, Decision 2."
+}

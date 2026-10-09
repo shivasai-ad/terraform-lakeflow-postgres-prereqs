@@ -16,7 +16,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "~> 1.9"
+          terraform_version: "~> 1.11" # the test suite uses override_during (Terraform 1.11+)
 
       - name: Format
         run: terraform fmt -check -recursive

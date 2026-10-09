@@ -59,6 +59,8 @@ module "cdc_source" {
 
   publication_tables           = var.publication_tables
   replica_identity_full_tables = var.replica_identity_full_tables
+  table_owner                  = var.table_owner
+  existing_secret_name         = var.existing_secret_name
 
   tags = var.tags
 }
